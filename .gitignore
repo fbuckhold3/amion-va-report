@@ -1,0 +1,37 @@
+# History files
+.Rhistory
+.Rapp.history
+
+# Session/data files
+.RData
+.RDataTmp
+*.Rproj.user/
+*.Rproj
+.Ruserdata
+
+# R Environment — contains AMION_LO secret, do NOT commit
+.Renviron
+.Renviron.local
+
+# Output reports — regenerated each run
+VA_Report_*.xlsx
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+
+# renv: keep lockfile + activate script + settings, ignore the library
+renv/library/
+renv/local/
+renv/cellar/
+renv/lock/
+renv/python/
+renv/staging/
+
+# rsconnect deploy state
+rsconnect/
+
+# Rendered Rmd artifacts (regenerated each render)
+va_monthly_report.html
+va_monthly_report_files/

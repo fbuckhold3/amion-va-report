@@ -1,0 +1,39 @@
+---
+title: "VA Monthly Rotation Report"
+output: html_document
+params:
+  report_month: ""
+  report_year: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = TRUE, warning = FALSE)
+```
+
+```{r run-report}
+# Pass through Rmd params (set in Posit Connect job settings) as env vars
+# so the underlying script can pick them up. Empty params -> use defaults
+# (current month).
+if (nzchar(params$report_month)) Sys.setenv(REPORT_MONTH = params$report_month)
+if (nzchar(params$report_year))  Sys.setenv(REPORT_YEAR  = params$report_year)
+
+# Write the .xlsx alongside the rendered .html so Connect can attach it
+# to the scheduled-report email.
+Sys.setenv(OUTPUT_DIR = ".")
+
+source("va_monthly_report.R", echo = FALSE)
+```
+
+**Output file:** ``r fname``
+
+| Metric | Value |
+|---|---|
+| Report month | `r month_label` |
+| Residents in report | `r nrow(summary_wide)` |
+| Total VA days logged | `r sprintf("%.1f", sum(summary_wide$Total_VA_Days, na.rm = TRUE))` |
+| Raw VA rows pulled | `r nrow(va_data)` |
+| Day-components after 1.0/date cap | `r nrow(va_capped)` |
+
+The Excel workbook (`r basename(fname)`) is attached to this rendering; it
+contains the full Summary, Daily Detail, Class Summary, and Assignment
+Inventory tabs.
