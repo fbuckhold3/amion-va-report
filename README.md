@@ -56,12 +56,6 @@ git clone https://github.com/<owner>/amion-va-report.git
 cd amion-va-report
 ```
 
-Create `.Renviron` (gitignored) with the Amion program token:
-
-```
-AMION_LO=ADMINSLUIM
-```
-
 Restore packages:
 
 ```r
@@ -95,8 +89,6 @@ deploy_shiny_app()
 
 In Connect's UI for **each** content item:
 
-- **Vars** (Settings → Vars): set `AMION_LO=<the program's Lo= token>`.
-  Never commit this value to git — that's why it's an env var.
 - **Access** (Settings → Access): set to *Specific users or groups* and
   add the residency administrators. Connect requires login for any
   protected content; the user's Posit Connect Cloud identity is the auth.
@@ -127,9 +119,9 @@ If you actually need a *single shared password* (e.g. you can't make
 every reviewer sign up for Connect), we'd need to add `shinymanager` or
 a custom auth layer to the app. Say the word and that's a small follow-up.
 
-The Amion `Lo=` token is the program's Amion access string, separate from
-Connect auth. It lives in the `AMION_LO` Connect Var (server-side, never
-exposed to the browser).
+The Amion `Lo=` value (`ADMINSLUIM`) is just the program's public lookup
+code on amion.com, not a secret. It's hard-coded as the default; override
+via the `AMION_LO` env var if another program ever forks this app.
 
 ## Reconciling against the manual MDFEA report
 

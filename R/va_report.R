@@ -36,6 +36,11 @@ EXCLUDE_STAFF_TYPES <- c("Neuro", "Anesth", "Psych")
 
 AMION_BASE <- "http://www.amion.com/cgi-bin/ocs?Lo=%s&Rpt=625c&Month=%s&Days=%d"
 
+# Amion program identifier. This is NOT a secret — it's the public lookup
+# code for the SLU IM Residency on amion.com. Override via the AMION_LO
+# environment variable if a different program ever needs to use this app.
+AMION_LO_DEFAULT <- "ADMINSLUIM"
+
 # Earliest academic year we pull. Bump this if you need older history.
 AMION_START_AY <- 2022L
 
@@ -73,12 +78,9 @@ current_ay_start <- function(today = Sys.Date()) {
 #' @param amion_lo The Lo= value (program token) from Amion
 #' @param urls Optional vector of full URLs; otherwise auto-built from the
 #'             start AY through the current AY (covers past + current year).
-fetch_amion_data <- function(amion_lo = Sys.getenv("AMION_LO"),
+fetch_amion_data <- function(amion_lo = Sys.getenv("AMION_LO", AMION_LO_DEFAULT),
                              urls = NULL) {
-  if (!nzchar(amion_lo) && is.null(urls)) {
-    stop("AMION_LO is not set. Add it to .Renviron locally or to Posit ",
-         "Connect Vars.")
-  }
+  if (!nzchar(amion_lo)) amion_lo <- AMION_LO_DEFAULT
   if (is.null(urls)) urls <- build_amion_urls(amion_lo)
   read_one <- function(url) {
     resp <- GET(url, timeout(60))
