@@ -42,17 +42,31 @@ ui <- page_sidebar(
   sidebar = sidebar(
     width = 320,
 
-    selectInput("month", "Month",
-                choices  = months_named,
-                selected = default_month),
+    # Native HTML <select> — instant, no selectize widget overhead.
+    # Side-by-side so it feels like one compact control.
+    div(style = "display: flex; gap: 8px;",
+        div(style = "flex: 2;",
+            selectInput("month", "Month",
+                        choices  = months_named,
+                        selected = default_month,
+                        selectize = FALSE)),
+        div(style = "flex: 1;",
+            selectInput("year", "Year",
+                        choices  = year_choices,
+                        selected = default_year,
+                        selectize = FALSE))),
 
-    selectInput("year", "Year",
-                choices  = year_choices,
-                selected = default_year),
+    # Quick-jump prev/next month so you don't have to use dropdowns at all
+    div(style = "display: flex; gap: 4px; margin-top: -10px;",
+        actionButton("prev_month", "<", class = "btn-sm",
+                     style = "flex: 1;"),
+        actionButton("next_month", ">", class = "btn-sm",
+                     style = "flex: 1;")),
 
     selectInput("class_filter", "Class (optional)",
                 choices  = c("All" = "", "R1", "R2", "R3", "Chief"),
-                selected = "", multiple = TRUE),
+                selected = "", multiple = TRUE,
+                selectize = FALSE),
 
     actionButton("generate", "Generate report",
                  class = "btn-primary btn-lg", width = "100%",
@@ -83,6 +97,22 @@ server <- function(input, output, session) {
   # The current report (NULL until user clicks Generate)
   current_report <- reactiveVal(NULL)
   current_label  <- reactiveVal(NULL)
+
+  # Prev/next month navigation
+  shift_month <- function(delta) {
+    m <- as.integer(input$month)
+    y <- as.integer(input$year)
+    new_d <- seq(as.Date(sprintf("%d-%02d-15", y, m)),
+                 length.out = 2, by = sprintf("%+d month", delta))[2]
+    new_m <- as.integer(format(new_d, "%m"))
+    new_y <- as.integer(format(new_d, "%Y"))
+    if (new_y %in% year_choices) {
+      updateSelectInput(session, "month", selected = new_m)
+      updateSelectInput(session, "year",  selected = new_y)
+    }
+  }
+  observeEvent(input$prev_month, shift_month(-1))
+  observeEvent(input$next_month, shift_month( 1))
 
   filt_class <- reactive({
     v <- input$class_filter
