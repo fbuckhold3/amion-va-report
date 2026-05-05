@@ -17,18 +17,22 @@ source("R/va_report.R")
 # Choices and defaults
 # -----------------------------------------------------------------------------
 
-months_named <- setNames(1:12, month.name)
+# Month buttons use 3-letter abbreviations so all 12 fit comfortably
+months_choices <- setNames(1:12, month.abb)
 
-year_choices <- AMION_START_AY : (as.integer(format(Sys.Date(), "%Y")) + 1L)
+# Last 3 calendar years. Auto-expands every January — e.g. on Jan 1 2027
+# the choices become 2025, 2026, 2027 with no code change.
+this_year     <- as.integer(format(Sys.Date(), "%Y"))
+year_choices  <- (this_year - 2L):this_year
+year_choices_named <- setNames(as.character(year_choices),
+                               as.character(year_choices))
 
 # Default to the *previous* completed month — the typical use-case
-default_month <- {
-  ref <- seq(Sys.Date(), length.out = 2, by = "-1 month")[2]
-  as.integer(format(ref, "%m"))
-}
-default_year <- {
-  ref <- seq(Sys.Date(), length.out = 2, by = "-1 month")[2]
-  as.integer(format(ref, "%Y"))
+.default_ref  <- seq(Sys.Date(), length.out = 2, by = "-1 month")[2]
+default_month <- as.integer(format(.default_ref, "%m"))
+default_year  <- {
+  y <- as.integer(format(.default_ref, "%Y"))
+  if (!y %in% year_choices) max(year_choices) else y
 }
 
 # -----------------------------------------------------------------------------
@@ -39,29 +43,41 @@ ui <- page_sidebar(
   title = "VA Rotation Report — SLU IM Residency",
   theme = bs_theme(bootswatch = "flatly"),
 
+  # Style the radio groups to look like compact toggle buttons
+  tags$head(tags$style(HTML("
+    .shiny-input-radiogroup .radio-inline,
+    .shiny-input-radiogroup .form-check-inline {
+      margin: 2px !important;
+      padding: 4px 10px;
+      border: 1px solid #cdd4da;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      background: #fff;
+      transition: background 0.1s;
+    }
+    .shiny-input-radiogroup .radio-inline:hover,
+    .shiny-input-radiogroup .form-check-inline:hover {
+      background: #eef3f7;
+    }
+    .shiny-input-radiogroup input[type='radio'] {
+      margin-right: 4px;
+    }
+  "))),
+
   sidebar = sidebar(
     width = 320,
 
-    # Native HTML <select> — instant, no selectize widget overhead.
-    # Side-by-side so it feels like one compact control.
-    div(style = "display: flex; gap: 8px;",
-        div(style = "flex: 2;",
-            selectInput("month", "Month",
-                        choices  = months_named,
-                        selected = default_month,
-                        selectize = FALSE)),
-        div(style = "flex: 1;",
-            selectInput("year", "Year",
-                        choices  = year_choices,
-                        selected = default_year,
-                        selectize = FALSE))),
+    # Click a button. That's it.
+    radioButtons("month", "Month",
+                 choices  = months_choices,
+                 selected = default_month,
+                 inline   = TRUE),
 
-    # Quick-jump prev/next month so you don't have to use dropdowns at all
-    div(style = "display: flex; gap: 4px; margin-top: -10px;",
-        actionButton("prev_month", "<", class = "btn-sm",
-                     style = "flex: 1;"),
-        actionButton("next_month", ">", class = "btn-sm",
-                     style = "flex: 1;")),
+    radioButtons("year", "Year",
+                 choices  = year_choices_named,
+                 selected = as.character(default_year),
+                 inline   = TRUE),
 
     selectInput("class_filter", "Class (optional)",
                 choices  = c("All" = "", "R1", "R2", "R3", "Chief"),
@@ -97,22 +113,6 @@ server <- function(input, output, session) {
   # The current report (NULL until user clicks Generate)
   current_report <- reactiveVal(NULL)
   current_label  <- reactiveVal(NULL)
-
-  # Prev/next month navigation
-  shift_month <- function(delta) {
-    m <- as.integer(input$month)
-    y <- as.integer(input$year)
-    new_d <- seq(as.Date(sprintf("%d-%02d-15", y, m)),
-                 length.out = 2, by = sprintf("%+d month", delta))[2]
-    new_m <- as.integer(format(new_d, "%m"))
-    new_y <- as.integer(format(new_d, "%Y"))
-    if (new_y %in% year_choices) {
-      updateSelectInput(session, "month", selected = new_m)
-      updateSelectInput(session, "year",  selected = new_y)
-    }
-  }
-  observeEvent(input$prev_month, shift_month(-1))
-  observeEvent(input$next_month, shift_month( 1))
 
   filt_class <- reactive({
     v <- input$class_filter
