@@ -74,7 +74,9 @@ current_ay_start <- function(today = Sys.Date()) {
 # Data fetch
 # -----------------------------------------------------------------------------
 
-#' Fetch all Amion year-blocks and return a single combined data frame
+#' Fetch all Amion year-blocks and return a single combined data frame.
+#' Use fetch_amion_month() instead when you only need a single month — much
+#' cheaper for the Shiny app.
 #' @param amion_lo The Lo= value (program token) from Amion
 #' @param urls Optional vector of full URLs; otherwise auto-built from the
 #'             start AY through the current AY (covers past + current year).
@@ -97,6 +99,21 @@ fetch_amion_data <- function(amion_lo = Sys.getenv("AMION_LO", AMION_LO_DEFAULT)
   data_all$Date <- mdy(data_all$Date)
   data_all$Academic_Year <- academic_year(data_all$Date)
   data_all
+}
+
+#' Fetch ONE month from Amion. Builds a single URL like Month=4-26&Days=30
+#' instead of pulling whole academic years — used by the Shiny app.
+#' @param month integer 1-12
+#' @param year  integer 4-digit year
+fetch_amion_month <- function(month, year,
+                              amion_lo = Sys.getenv("AMION_LO", AMION_LO_DEFAULT)) {
+  if (!nzchar(amion_lo)) amion_lo <- AMION_LO_DEFAULT
+  first_of_month <- as.Date(sprintf("%d-%02d-01", year, month))
+  days_in_month  <- as.integer(lubridate::days_in_month(first_of_month))
+  url <- sprintf(AMION_BASE, amion_lo,
+                 sprintf("%d-%02d", month, year %% 100),
+                 days_in_month)
+  fetch_amion_data(amion_lo = amion_lo, urls = url)
 }
 
 academic_year <- function(d) {
