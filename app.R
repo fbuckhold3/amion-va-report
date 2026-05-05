@@ -109,9 +109,11 @@ server <- function(input, output, session) {
   observe({
     req(data_all())
     ays <- sort(unique(data_all()$Academic_Year))
+    current <- isolate(input$ay_filter)
+    if (is.null(current)) current <- ""
     updateSelectInput(session, "ay_filter",
                       choices = c("All" = "", ays),
-                      selected = isolate(input$ay_filter %||% ""))
+                      selected = current)
   })
 
   filt_year <- reactive({
