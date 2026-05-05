@@ -36,27 +36,50 @@ EXCLUDE_STAFF_TYPES <- c("Neuro", "Anesth", "Psych")
 
 AMION_BASE <- "http://www.amion.com/cgi-bin/ocs?Lo=%s&Rpt=625c&Month=%s&Days=%d"
 
+# Earliest academic year we pull. Bump this if you need older history.
+AMION_START_AY <- 2022L
+
+#' Build the list of Amion year-block URLs to fetch
+#' @param amion_lo The Lo= program token
+#' @param start_ay Earliest AY start year to include (e.g. 2022 for AY 2022-23)
+#' @param end_ay   Latest AY start year to include; defaults to the AY of
+#'                 today (i.e. always covers the *current* year through next
+#'                 June 30) so the app keeps working without code changes.
+build_amion_urls <- function(amion_lo,
+                             start_ay = AMION_START_AY,
+                             end_ay   = current_ay_start()) {
+  ay_starts <- start_ay:end_ay
+  vapply(ay_starts, function(yr) {
+    # AY runs Jul 1 of yr through Jun 30 of yr+1; Feb 29 falls in yr+1
+    yp1  <- yr + 1L
+    leap <- (yp1 %% 4 == 0 && yp1 %% 100 != 0) || (yp1 %% 400 == 0)
+    days <- if (leap) 366L else 365L
+    sprintf(AMION_BASE, amion_lo,
+            sprintf("7-%02d", yr %% 100),
+            days)
+  }, character(1))
+}
+
+current_ay_start <- function(today = Sys.Date()) {
+  yr <- as.integer(format(today, "%Y"))
+  if (as.integer(format(today, "%m")) >= 7) yr else yr - 1L
+}
+
 # -----------------------------------------------------------------------------
 # Data fetch
 # -----------------------------------------------------------------------------
 
 #' Fetch all Amion year-blocks and return a single combined data frame
 #' @param amion_lo The Lo= value (program token) from Amion
-#' @param urls Optional vector of full URLs; otherwise built from year blocks
+#' @param urls Optional vector of full URLs; otherwise auto-built from the
+#'             start AY through the current AY (covers past + current year).
 fetch_amion_data <- function(amion_lo = Sys.getenv("AMION_LO"),
                              urls = NULL) {
   if (!nzchar(amion_lo) && is.null(urls)) {
     stop("AMION_LO is not set. Add it to .Renviron locally or to Posit ",
          "Connect Vars.")
   }
-  if (is.null(urls)) {
-    urls <- c(
-      sprintf(AMION_BASE, amion_lo, "7-22", 365L),
-      sprintf(AMION_BASE, amion_lo, "7-23", 366L),
-      sprintf(AMION_BASE, amion_lo, "7-24", 365L),
-      sprintf(AMION_BASE, amion_lo, "7-25", 365L)
-    )
-  }
+  if (is.null(urls)) urls <- build_amion_urls(amion_lo)
   read_one <- function(url) {
     resp <- GET(url, timeout(60))
     stop_for_status(resp)

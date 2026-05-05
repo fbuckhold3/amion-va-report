@@ -23,7 +23,9 @@ source("R/va_report.R")
 # -----------------------------------------------------------------------------
 
 months_named <- setNames(1:12, month.name)
-year_choices <- (as.integer(format(Sys.Date(), "%Y")) - 1) : (as.integer(format(Sys.Date(), "%Y")) + 1)
+# Span everything we pull from Amion (AMION_START_AY) through next calendar
+# year so future months in the in-progress AY are also pickable.
+year_choices <- AMION_START_AY : (as.integer(format(Sys.Date(), "%Y")) + 1L)
 
 ui <- page_sidebar(
   title = "VA Rotation Report — SLU IM Residency",
@@ -41,9 +43,7 @@ ui <- page_sidebar(
                 choices = c("All" = "", "R1", "R2", "R3", "Chief"),
                 selected = "", multiple = TRUE),
     selectInput("ay_filter", "Academic year filter",
-                choices = c("All" = "",
-                            "2022-2023", "2023-2024",
-                            "2024-2025", "2025-2026", "2026-2027"),
+                choices = c("All" = ""),  # populated reactively from data
                 selected = ""),
     actionButton("refresh", "Refresh data from Amion",
                  class = "btn-primary", width = "100%"),
@@ -104,6 +104,15 @@ server <- function(input, output, session) {
   observe({ if (is.null(data_all())) fetch_now() })
 
   observeEvent(input$refresh, { fetch_now() })
+
+  # Populate the AY filter with whatever years the loaded data actually has
+  observe({
+    req(data_all())
+    ays <- sort(unique(data_all()$Academic_Year))
+    updateSelectInput(session, "ay_filter",
+                      choices = c("All" = "", ays),
+                      selected = isolate(input$ay_filter %||% ""))
+  })
 
   filt_year <- reactive({
     v <- input$ay_filter
